@@ -1,0 +1,8 @@
+@import 'tailwindcss';
+
+#root {
+  height: 100vh;
+  overflow-y: auto;
+  
+  overscroll-behavior-y: contain;
+}
