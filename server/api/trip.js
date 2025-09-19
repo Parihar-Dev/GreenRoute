@@ -1,7 +1,9 @@
 const axios = require('axios');
 const { Trip } = require('../database/index');
 const { asyncHandler, sendResponse, createError } = require('../auth/error-handler');
-const polyline = require('polyline-encoded');
+const mbxDirections = require('@mapbox/mapbox-sdk/services/directions');
+
+const directionsClient = mbxDirections({ accessToken: process.env.MAPBOX_ACCESS_TOKEN });
 
 exports.getTrips = asyncHandler(async (req, res) => {
     const trips = await Trip.findAll({ where: { userId: req.user.id } });
@@ -31,109 +33,82 @@ exports.planTrip = asyncHandler(async (req, res) => {
     const endCoords = [end_location.longitude, end_location.latitude];
     const waypoints = [];
 
-    const orsProfile = 'driving-car'; 
-
-    const orsPayload = {
-        coordinates: [startCoords, ...waypoints, endCoords],
-        options: {
-            "avoid_features": ['tollways'],
-        }
-    };
-
-    let orsRes;
+    let mapboxRes;
     try {
-        orsRes = await axios.post(
-            `https://api.openrouteservice.org/v2/directions/${orsProfile}`,
-            orsPayload,
-            {
-                headers: {
-                    "Authorization": process.env.ORS_API_KEY,
-                    "Content-Type": "application/json"
-                }
-            }
-        );
+        mapboxRes = await directionsClient.getDirections({
+            profile: 'driving',
+            waypoints: [
+                { coordinates: startCoords },
+                ...waypoints.map(w => ({ coordinates: w })),
+                { coordinates: endCoords }
+            ],
+            geometries: 'geojson',
+            alternatives: false,
+            annotations: ['distance', 'duration']
+        }).send();
     } catch (error) {
-        console.error("OpenRouteService API Error:", error.response?.data || error.message);
-        throw createError(500, "Failed to get route from OpenRouteService.");
+        console.error("Mapbox Directions API Error:", error.body || error.message);
+        throw createError(500, "Failed to get route from Mapbox.");
     }
 
-    const routes = orsRes.data.routes;
-    let bestRoute = null;
-    let bestScore = Infinity;
+    const route = mapboxRes.body.routes[0];
 
-    for (const route of routes) {
-        const distance_km = route.summary.distance / 1000;
-        const duration_min = route.summary.duration / 60;
-        const encodedPolyline = route.geometry;
-        const decodedPolyline = polyline.decode(encodedPolyline);
+    if (!route) {
+        throw createError(404, "No route found for the given locations.");
+    }
+    
+    const distance_m = route.distance;
+    const duration_s = route.duration;
+    const distance_km = distance_m / 1000;
+    const duration_min = duration_s / 60;
+    const decodedPolyline = route.geometry.coordinates.map(coord => [coord[1], coord[0]]);
 
-        // Elevation and weather (reuse your logic, or use defaults for alternatives)
-        let elevation_gain_m = 200;
-        try {
-            const elevationRes = await axios.get(
-                `https://api.open-meteo.com/v1/elevation?latitude=${start_location.latitude},${end_location.latitude}&longitude=${start_location.longitude},${end_location.longitude}`
-            );
-            const elevations = elevationRes.data.elevation;
-            if (elevations.length === 2) {
-                elevation_gain_m = Math.abs(elevations[1] - elevations[0]) * 1.5;
+    // Elevation and weather (reuse your logic, or use defaults for alternatives)
+    let elevation_gain_m = 200;
+    try {
+        const elevationRes = await axios.get(
+            `https://api.open-meteo.com/v1/elevation?latitude=${start_location.latitude},${end_location.latitude}&longitude=${start_location.longitude},${end_location.longitude}`
+        );
+        const elevations = elevationRes.data.elevation;
+        if (elevations.length === 2) {
+            elevation_gain_m = Math.abs(elevations[1] - elevations[0]) * 1.5;
+        }
+    } catch (error) {}
+
+    let temperature_c = 25;
+    try {
+        const weatherRes = await axios.get(
+            `https://api.openweathermap.org/data/2.5/weather?lat=${start_location.latitude}&lon=${start_location.longitude}&units=metric&appid=${process.env.OPENWEATHER_API_KEY}`
+        );
+        temperature_c = weatherRes.data.main.temp;
+    } catch (error) {}
+
+    // ML prediction
+    let mlRes;
+    try {
+        mlRes = await axios.post("http://localhost:8000/predict-energy", {
+            distance_km,
+            elevation_gain_m,
+            avg_speed_kmph: distance_km / (duration_min / 60),
+            temperature_c,
+            vehicle: {
+                battery_capacity_kwh: parseFloat(vehicle.battery_capacity_kwh),
+                vehicle_mass_kg: parseFloat(vehicle.vehicle_mass_kg),
+                drag_coeff: parseFloat(vehicle.drag_coeff),
+                frontal_area_m2: parseFloat(vehicle.frontal_area_m2),
+                rolling_resistance_coeff: parseFloat(vehicle.rolling_resistance_coeff)
             }
-        } catch (error) {}
-
-        let temperature_c = 25;
-        try {
-            const weatherRes = await axios.get(
-                `https://api.openweathermap.org/data/2.5/weather?lat=${start_location.latitude}&lon=${start_location.longitude}&units=metric&appid=${process.env.OPENWEATHER_API_KEY}`
-            );
-            temperature_c = weatherRes.data.main.temp;
-        } catch (error) {}
-
-        // ML prediction
-        let mlRes;
-        try {
-            mlRes = await axios.post("http://localhost:8000/predict-energy", {
-                distance_km,
-                elevation_gain_m,
-                avg_speed_kmph: distance_km / (duration_min / 60),
-                temperature_c,
-                vehicle: {
-                    battery_capacity_kwh: parseFloat(vehicle.battery_capacity_kwh),
-                    vehicle_mass_kg: parseFloat(vehicle.vehicle_mass_kg),
-                    drag_coeff: parseFloat(vehicle.drag_coeff),
-                    frontal_area_m2: parseFloat(vehicle.frontal_area_m2),
-                    rolling_resistance_coeff: parseFloat(vehicle.rolling_resistance_coeff)
-                }
-            });
-        } catch (error) {
-            continue; // skip this route if ML fails
-        }
-
-        const predictedEnergy = mlRes.data.predicted_energy_kwh;
-        const finalBatteryLevel = battery_level_percent - (predictedEnergy / vehicle.battery_capacity_kwh) * 100;
-        const chargingStopsCount = finalBatteryLevel < 20 ? 1 : 0;
-
-        // Simple scoring: prioritize fewer charging stops, then lower energy, then shorter time
-        const score = chargingStopsCount * 1000 + predictedEnergy + duration_min / 60;
-
-        if (score < bestScore) {
-            bestScore = score;
-            bestRoute = {
-                routeSummary: {
-                    distance: `${distance_km.toFixed(1)} km`,
-                    duration: `${Math.round(duration_min)} min`,
-                    energyConsumption: `${predictedEnergy.toFixed(2)} kWh`,
-                    chargingStops: chargingStopsCount,
-                    finalBattery: `${finalBatteryLevel.toFixed(1)}%`
-                },
-                decodedPolyline,
-                chargingStopsCount,
-                predictedEnergy,
-                finalBatteryLevel
-            };
-        }
+        });
+    } catch (error) {
+        throw createError(500, "Failed to predict energy consumption.");
     }
+
+    const predictedEnergy = mlRes.data.predicted_energy_kwh;
+    const finalBatteryLevel = battery_level_percent - (predictedEnergy / vehicle.battery_capacity_kwh) * 100;
+    const chargingStopsCount = finalBatteryLevel < 20 ? 1 : 0;
 
     let chargingStations = [];
-    if (bestRoute.chargingStopsCount > 0) {
+    if (chargingStopsCount > 0) {
         try {
             const ocmRes = await axios.get(
                 `https://api.openchargemap.io/v3/poi/?output=json&countrycode=IN&latitude=${start_location.latitude}&longitude=${start_location.longitude}&distance=100&distanceunit=KM&key=${process.env.OPENCHARGEMAP_API_KEY}`
@@ -146,13 +121,42 @@ exports.planTrip = asyncHandler(async (req, res) => {
                 chargingTime: 'N/A',
                 status: 'Available'
             }));
-        } catch (error) {}
+
+            // Handle case where API returns no stations despite a need for them
+            if (chargingStopsCount > 0 && chargingStations.length === 0) {
+                chargingStations = [{
+                    name: "No charging stops found.",
+                    distance: "N/A",
+                    type: "N/A",
+                    price: "N/A",
+                    chargingTime: "N/A",
+                    status: "N/A"
+                }];
+            }
+        } catch (error) {
+            console.error("OpenChargeMap API Error:", error.response?.data || error.message);
+            // Instead of throwing an error, provide a user-friendly message
+            chargingStations = [{
+                name: "Could not retrieve charging stations.",
+                distance: "Please check your OpenChargeMap API key or try again later.",
+                type: "N/A",
+                price: "N/A",
+                chargingTime: "N/A",
+                status: "N/A"
+            }];
+        }
     }
 
     const responseData = {
-        routeSummary: bestRoute.routeSummary,
+        routeSummary: {
+            distance: `${distance_km.toFixed(1)} km`,
+            duration: `${Math.round(duration_min)} min`,
+            energyConsumption: `${predictedEnergy.toFixed(2)} kWh`,
+            chargingStops: chargingStopsCount,
+            finalBattery: `${finalBatteryLevel.toFixed(1)}%`
+        },
         chargingStations,
-        routePolyline: bestRoute.decodedPolyline
+        routePolyline: decodedPolyline
     };
 
     await Trip.create({
@@ -160,7 +164,7 @@ exports.planTrip = asyncHandler(async (req, res) => {
         startLongitude: start_location.longitude,
         endLatitude: end_location.latitude,
         endLongitude: end_location.longitude,
-        predictedConsumption: bestRoute.predictedEnergy,
+        predictedConsumption: predictedEnergy,
         userId: userId
     });
 

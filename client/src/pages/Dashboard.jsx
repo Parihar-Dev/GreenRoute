@@ -3,23 +3,11 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { logout } from '../features/authSlice';
-import { getVehicles } from '../features/vehicleSlice'; // Make sure to import this
-import { MapContainer, TileLayer, Marker, Popup, Polyline } from "react-leaflet";
+import { getVehicles } from '../features/vehicleSlice';
+import Map, { Marker, Source, Layer } from "react-map-gl/mapbox";
 import { MapPin, Battery, LogOut, ArrowLeft, Route, Navigation, User, Car, Fuel, CheckCircle, AlertCircle } from 'lucide-react';
-import "leaflet/dist/leaflet.css";
-import L from 'leaflet';
-import icon from 'leaflet/dist/images/marker-icon.png';
-import iconShadow from 'leaflet/dist/images/marker-shadow.png';
+import "mapbox-gl/dist/mapbox-gl.css";
 import apiClient from '../api/apiClient';
-
-// Fix for default Leaflet marker icons not showing up
-let DefaultIcon = L.icon({
-    iconUrl: icon,
-    shadowUrl: iconShadow,
-    iconSize: [25, 41],
-    iconAnchor: [12, 41]
-});
-L.Marker.prototype.options.icon = DefaultIcon;
 
 // Reusable hook to detect clicks outside of a component
 const useOnClickOutside = (ref, handler) => {
@@ -217,40 +205,69 @@ const ChargingStations = ({ stations }) => (
 
 const MapPanel = ({ routeCoordinates, routePolyline }) => {
     const mapRef = useRef(null);
+    const MAPBOX_ACCESS_TOKEN = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
+    const initialViewState = {
+        longitude: 78.9629,
+        latitude: 20.5937,
+        zoom: 5
+    };
+
+    const routeGeoJSON = routePolyline ? {
+        type: 'Feature',
+        properties: {},
+        geometry: {
+            type: 'LineString',
+            coordinates: routePolyline.map(coords => [coords[1], coords[0]])
+        }
+    } : null;
+
+    const layerStyle = {
+        id: 'route-line',
+        type: 'line',
+        source: 'route-source',
+        layout: {
+            'line-join': 'round',
+            'line-cap': 'round'
+        },
+        paint: {
+            'line-color': '#00E676',
+            'line-width': 4
+        }
+    };
 
     useEffect(() => {
         if (routeCoordinates && mapRef.current) {
-            const bounds = L.latLngBounds([routeCoordinates.start.latitude, routeCoordinates.start.longitude], [routeCoordinates.end.latitude, routeCoordinates.end.longitude]);
-            mapRef.current.fitBounds(bounds, { padding: [50, 50] });
+            const startCoords = [routeCoordinates.start.longitude, routeCoordinates.start.latitude];
+            const endCoords = [routeCoordinates.end.longitude, routeCoordinates.end.latitude];
+            const bounds = [startCoords, endCoords];
+            mapRef.current.fitBounds(bounds, { padding: 50 });
         }
     }, [routeCoordinates]);
 
     return (
-        <MapContainer
-            center={[20.5937, 78.9629]}
-            zoom={5}
+        <Map
             ref={mapRef}
-            style={{ height: "100%", width: "100%" }}
-            className="rounded-lg"
+            mapboxAccessToken={MAPBOX_ACCESS_TOKEN}
+            initialViewState={initialViewState}
+            style={{ width: "100%", height: "100%", borderRadius: "0.5rem" }}
+            mapStyle="mapbox://styles/mapbox/streets-v12"
         >
-            <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
             {routeCoordinates && (
                 <>
-                    <Marker position={[routeCoordinates.start.latitude, routeCoordinates.start.longitude]}>
-                        <Popup>Start Point</Popup>
+                    <Marker longitude={routeCoordinates.start.longitude} latitude={routeCoordinates.start.latitude} anchor="bottom">
+                        <MapPin className="h-8 w-8 text-red-500" />
                     </Marker>
-                    <Marker position={[routeCoordinates.end.latitude, routeCoordinates.end.longitude]}>
-                        <Popup>Destination</Popup>
+                    <Marker longitude={routeCoordinates.end.longitude} latitude={routeCoordinates.end.latitude} anchor="bottom">
+                        <MapPin className="h-8 w-8 text-blue-500" />
                     </Marker>
                 </>
             )}
-            {routePolyline && (
-                <Polyline pathOptions={{ color: '#00E676' }} positions={routePolyline} />
+            {routeGeoJSON && (
+                <Source id="route-source" type="geojson" data={routeGeoJSON}>
+                    <Layer {...layerStyle} />
+                </Source>
             )}
-        </MapContainer>
+        </Map>
     );
 };
 
@@ -267,19 +284,16 @@ function Dashboard() {
     const dispatch = useDispatch();
 
     useEffect(() => {
-        // Fetch vehicles from the backend when the component loads
         if (vehicleStatus === 'idle') {
             dispatch(getVehicles());
         }
     }, [vehicleStatus, dispatch]);
     
-    // Set a default vehicle once the list is loaded
     useEffect(() => {
         if (vehicles.length > 0 && !tripData.vehicleId) {
             setTripData(prev => ({ ...prev, vehicleId: vehicles[0].id }));
         }
     }, [vehicles, tripData.vehicleId]);
-
 
     const handleInputChange = useCallback((field, value) => {
         setTripData(prev => ({ ...prev, [field]: value }));
@@ -336,7 +350,6 @@ function Dashboard() {
                 return;
             }
 
-            // The payload sent to the backend now includes all necessary data
             const payload = {
                 start_location: { latitude: startLoc.latitude, longitude: startLoc.longitude },
                 end_location: { latitude: endLoc.latitude, longitude: endLoc.longitude },
@@ -350,11 +363,9 @@ function Dashboard() {
                 }
             };
             
-            // Call your backend API
             const response = await apiClient.post('/trip/plan', payload);
             const { routeSummary, chargingStations, routePolyline } = response.data;
 
-            // Update state with the real data from the API
             setRouteSummary(routeSummary);
             setChargingStations(chargingStations);
             setRoutePolyline(routePolyline);
