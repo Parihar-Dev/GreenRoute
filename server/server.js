@@ -11,6 +11,7 @@ app.use(express.json());
 
 const authRoutes = require('./api-routes/auth');
 const userRoutes = require('./api-routes/user');
+const tripRoutes = require('./api-routes/trip');
 
 app.get('/', (req, res) => {
     res.send("Welcome to GreenRoute API");
@@ -18,6 +19,7 @@ app.get('/', (req, res) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
+app.use('/api/trip', tripRoutes);
 
 db.authenticate()
     .then(() => {
