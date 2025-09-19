@@ -332,7 +332,7 @@ function Dashboard() {
         setIsLoading(true);
         setRouteGenerated(false);
 
-        const selectedVehicle = vehicles.find(v => v.id === tripData.vehicleId);
+        const selectedVehicle = vehicles.find(v => v.id == tripData.vehicleId);
 
         if (!selectedVehicle) {
             setError('Please select a valid vehicle from your garage.');
