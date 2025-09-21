@@ -203,7 +203,7 @@ const ChargingStations = ({ stations }) => (
     </div>
 );
 
-const MapPanel = ({ routeCoordinates, routePolyline }) => {
+const MapPanel = ({ routeCoordinates, routePolyline, isVisible }) => {
     const mapRef = useRef(null);
     const MAPBOX_ACCESS_TOKEN = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
     const initialViewState = {
@@ -236,6 +236,14 @@ const MapPanel = ({ routeCoordinates, routePolyline }) => {
     };
 
     useEffect(() => {
+        if (isVisible && mapRef.current) {
+            setTimeout(() => {
+                mapRef.current.getMap().resize();
+            }, 0);
+        }
+    },[isVisible])
+
+    useEffect(() => {
         if (routeCoordinates && mapRef.current) {
             const startCoords = [routeCoordinates.start.longitude, routeCoordinates.start.latitude];
             const endCoords = [routeCoordinates.end.longitude, routeCoordinates.end.latitude];
@@ -245,29 +253,30 @@ const MapPanel = ({ routeCoordinates, routePolyline }) => {
     }, [routeCoordinates]);
 
     return (
-        <Map
-            ref={mapRef}
-            mapboxAccessToken={MAPBOX_ACCESS_TOKEN}
-            initialViewState={initialViewState}
-            style={{ width: "100%", height: "100%", borderRadius: "0.5rem" }}
-            mapStyle="mapbox://styles/mapbox/streets-v12"
-        >
-            {routeCoordinates && (
-                <>
-                    <Marker longitude={routeCoordinates.start.longitude} latitude={routeCoordinates.start.latitude} anchor="bottom">
-                        <MapPin className="h-8 w-8 text-red-500" />
-                    </Marker>
-                    <Marker longitude={routeCoordinates.end.longitude} latitude={routeCoordinates.end.latitude} anchor="bottom">
-                        <MapPin className="h-8 w-8 text-blue-500" />
-                    </Marker>
-                </>
-            )}
-            {routeGeoJSON && (
-                <Source id="route-source" type="geojson" data={routeGeoJSON}>
-                    <Layer {...layerStyle} />
-                </Source>
-            )}
-        </Map>
+        <div className='w-full h-full relative'>
+            <Map
+                ref={mapRef}
+                mapboxAccessToken={MAPBOX_ACCESS_TOKEN}
+                initialViewState={initialViewState}
+                mapStyle="mapbox://styles/mapbox/streets-v12"
+            >
+                {routeCoordinates && (
+                    <>
+                        <Marker longitude={routeCoordinates.start.longitude} latitude={routeCoordinates.start.latitude} anchor="bottom">
+                            <MapPin className="h-8 w-8 text-red-500" />
+                        </Marker>
+                        <Marker longitude={routeCoordinates.end.longitude} latitude={routeCoordinates.end.latitude} anchor="bottom">
+                            <MapPin className="h-8 w-8 text-blue-500" />
+                        </Marker>
+                    </>
+                )}
+                {routeGeoJSON && (
+                    <Source id="route-source" type="geojson" data={routeGeoJSON}>
+                        <Layer {...layerStyle} />
+                    </Source>
+                )}
+            </Map>
+        </div>
     );
 };
 
@@ -281,6 +290,7 @@ function Dashboard() {
     const [chargingStations, setChargingStations] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
+    const [isMobileMapVisible, setIsMobileMapVisible] = useState(false);
     const dispatch = useDispatch();
 
     useEffect(() => {
@@ -288,7 +298,7 @@ function Dashboard() {
             dispatch(getVehicles());
         }
     }, [vehicleStatus, dispatch]);
-    
+
     useEffect(() => {
         if (vehicles.length > 0 && !tripData.vehicleId) {
             setTripData(prev => ({ ...prev, vehicleId: vehicles[0].id }));
@@ -356,13 +366,13 @@ function Dashboard() {
                 battery_level_percent: tripData.batteryPercentage,
                 vehicle: {
                     battery_capacity_kwh: parseFloat(selectedVehicle.batteryCapacity),
-                    vehicle_mass_kg: parseFloat(selectedVehicle.mass) || 1800, 
+                    vehicle_mass_kg: parseFloat(selectedVehicle.mass) || 1800,
                     drag_coeff: parseFloat(selectedVehicle.drag) || 0.28,
                     frontal_area_m2: parseFloat(selectedVehicle.frontalArea) || 2.2,
                     rolling_resistance_coeff: parseFloat(selectedVehicle.rollingResistance) || 0.01
                 }
             };
-            
+
             const response = await apiClient.post('/trip/plan', payload);
             const { routeSummary, chargingStations, routePolyline } = response.data;
 
@@ -374,9 +384,11 @@ function Dashboard() {
                 end: { latitude: endLoc.latitude, longitude: endLoc.longitude }
             });
             setRouteGenerated(true);
+            setIsMobileMapVisible(true);
         } catch (err) {
             setError(err.response?.data?.message || 'An unexpected error occurred while planning the route.');
             setRouteGenerated(false);
+            setIsMobileMapVisible(false);
         } finally {
             setIsLoading(false);
         }
@@ -390,13 +402,14 @@ function Dashboard() {
         setChargingStations(null);
         setTripData(prev => ({ ...prev, startLocation: '', destination: '' }));
         setError('');
+        setIsMobileMapVisible(false);
     }, [tripData]);
 
     return (
         <div className="min-h-screen bg-slate-950 text-white flex flex-col">
             <DashboardHeader />
             <div className="flex flex-1 overflow-hidden">
-                <aside className="w-full sm:w-96 h-[calc(100vh-69px)] bg-slate-900/30 border-r border-slate-800 p-6 overflow-y-auto space-y-6">
+                <aside className={`w-full sm:w-96 h-[calc(100vh-69px)] bg-slate-900/30 border-r border-slate-800 p-6 overflow-y-auto space-y-6 flex-shrink-0 ${isMobileMapVisible ? 'hidden' : ''} sm:block`}>
                     <TripPlannerForm
                         tripData={tripData}
                         vehicles={vehicles}
@@ -410,9 +423,35 @@ function Dashboard() {
                         <RouteSummary summary={routeSummary} />
                         <ChargingStations stations={chargingStations} />
                     </>)}
+                    {!isMobileMapVisible && (
+                        <div className="fixed bottom-4 right-4 z-20 sm:hidden">
+                            <button
+                                onClick={() => setIsMobileMapVisible(true)}
+                                className="bg-slate-800 text-white p-3 rounded-full shadow-lg"
+                                aria-label="View Map"
+                            >
+                                <MapPin size={20} />
+                            </button>
+                        </div>
+                    )}
                 </aside>
-                <main className="flex-1 hidden sm:flex">
-                    <MapPanel routeCoordinates={routeCoordinates} routePolyline={routePolyline} />
+                <main className={`flex-1 ${!isMobileMapVisible ? 'hidden' : ''} sm:flex relative`}>
+                    <MapPanel 
+                        routeCoordinates={routeCoordinates}
+                        routePolyline={routePolyline}
+                        isVisible={isMobileMapVisible}
+                    />
+                    {isMobileMapVisible && (
+                        <div className="fixed bottom-4 right-4 z-20 sm:hidden">
+                            <button
+                                onClick={() => setIsMobileMapVisible(false)}
+                                className="bg-slate-800 text-white p-3 rounded-full shadow-lg"
+                                aria-label="View Details"
+                            >
+                                <Route size={20} />
+                            </button>
+                        </div>
+                    )}
                 </main>
             </div>
         </div>

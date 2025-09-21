@@ -58,9 +58,9 @@ function Navbar() {
                         </Link>
 
                         <div className='hidden md:flex items-center space-x-8 absolute left-1/2 -translate-x-1/2'>
-                            <Link to='/features' className='font-extralight text-white pb-1 border-b-2 border-transparent hover:border-[#78E65A] active:border-[#78E65A]'>Features</Link>
-                            <Link to='/pricing' className='font-extralight text-white pb-1 border-b-2 border-transparent hover:border-[#78E65A] active:border-[#78E65A]'>Pricing</Link>
-                            <Link to='/about-us' className='font-extralight text-white pb-1 border-b-2 border-transparent hover:border-[#78E65A] active:border-[#78E65A]'>About Us</Link>
+                            <a href='#features' className='font-extralight text-white pb-1 border-b-2 border-transparent hover:border-[#78E65A] active:border-[#78E65A]'>Features</a>
+                            <a href='#how-it-works' className='font-extralight text-white pb-1 border-b-2 border-transparent hover:border-[#78E65A] active:border-[#78E65A]'>How It Works</a>
+                            <a href='#cta' className='font-extralight text-white pb-1 border-b-2 border-transparent hover:border-[#78E65A] active:border-[#78E65A]'>CTA</a>
                         </div>
 
                         <div className='hidden md:flex items-center space-x-4'>
@@ -71,6 +71,9 @@ function Navbar() {
                                     </button>
                                     {isDropdownOpen && (
                                         <div className="absolute right-0 mt-2 w-48 bg-[#1A364E] rounded-lg shadow-xl py-2 z-40 border border-slate-700">
+                                            <Link to='/dashboard' className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-slate-200 hover:bg-slate-700">
+                                                <User size={16} /> Dashboard
+                                            </Link>
                                             <Link to='/garage' className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-slate-200 hover:bg-slate-700">
                                                 <Car size={16} /> My Garage
                                             </Link>
@@ -101,9 +104,9 @@ function Navbar() {
                         </button>
                         
                         <div className="flex flex-col items-center space-y-8">
-                            <Link to="/features" className="text-3xl font-extralight" onClick={closeMobileMenu}>Features</Link>
-                            <Link to="/pricing" className="text-3xl font-extralight" onClick={closeMobileMenu}>Pricing</Link>
-                            <Link to="/about-us" className="text-3xl font-extralight" onClick={closeMobileMenu}>About Us</Link>
+                            <a href="#features" className="text-3xl font-extralight" onClick={closeMobileMenu}>Features</a>
+                            <a href="#how-it-works" className="text-3xl font-extralight" onClick={closeMobileMenu}>How It Works</a>
+                            <a href="#cta" className="text-3xl font-extralight" onClick={closeMobileMenu}>CTA</a>
                         </div>
 
                         <div className="absolute bottom-10 flex flex-col w-full px-8 space-y-4">

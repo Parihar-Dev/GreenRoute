@@ -46,7 +46,7 @@ const AddVehicleModal = ({ isOpen, onClose, onError, vehicle }) => {
         e.preventDefault();
         setError(null);
         setIsSubmitting(true);
-        
+
         try {
             let resultAction;
             if (vehicle) {
@@ -54,7 +54,7 @@ const AddVehicleModal = ({ isOpen, onClose, onError, vehicle }) => {
             } else {
                 resultAction = await dispatch(addVehicle(formData));
             }
-            
+
             if (resultAction.meta.requestStatus === 'fulfilled') {
                 onClose();
             } else {
@@ -78,7 +78,7 @@ const AddVehicleModal = ({ isOpen, onClose, onError, vehicle }) => {
             <div className="bg-slate-900/50 text-white p-6 rounded-lg shadow-2xl w-full max-w-md relative animate-fade-in-up border border-slate-700">
                 <form onSubmit={handleAddVehicle} className="space-y-4">
                     <div className='flex justify-between items-center'>
-                        <h2 className="text-xl font-normal">{ vehicle ? 'Update Vehicle' : 'Add New Vehicle'}</h2>
+                        <h2 className="text-xl font-normal">{vehicle ? 'Update Vehicle' : 'Add New Vehicle'}</h2>
                         <button onClick={onClose} className="text-slate-400 hover:text-white cursor-pointer"><X /></button>
                     </div>
                     {error && <p className="text-red-400 text-sm bg-red-900/50 p-3 rounded-lg">{error}</p>}
@@ -123,9 +123,9 @@ const AddVehicleModal = ({ isOpen, onClose, onError, vehicle }) => {
                         />
                     </div>
                     <button type="submit" className="w-full bg-[#00E676] text-black font-normal py-3 rounded-lg hover:bg-green-400 transition-colors flex items-center justify-center space-x-2 disabled:bg-slate-400 disabled:cursor-not-allowed" disabled={isSubmitting}>
-                        {isSubmitting 
-                        ? <><Loader2 size={20} className="animate-spin" /><span>{vehicle ? 'Updating...' : 'Adding...'}</span></> 
-                        : <><Plus size={20} /><span>{ vehicle ? 'Update Vehicle' : 'Add Vehicle'}</span></>
+                        {isSubmitting
+                            ? <><Loader2 size={20} className="animate-spin" /><span>{vehicle ? 'Updating...' : 'Adding...'}</span></>
+                            : <><Plus size={20} /><span>{vehicle ? 'Update Vehicle' : 'Add Vehicle'}</span></>
                         }
                     </button>
                 </form>
@@ -190,7 +190,7 @@ const DashboardHeader = () => {
         setIsDropdownOpen(false);
         navigate('/login');
     }
-    
+
     return (
         <header className="bg-slate-950/50 backdrop-blur-md border-b border-slate-800 px-6 py-4 z-1001">
             <div className="flex items-center justify-between">
@@ -204,6 +204,9 @@ const DashboardHeader = () => {
                         </button>
                         {isDropdownOpen && (
                             <div className="absolute right-0 mt-2 w-48 bg-slate-800 rounded-lg shadow-xl py-2 border border-slate-700 z-50">
+                                <a href="/dashboard" className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-slate-200 hover:bg-slate-700/80 transition-colors">
+                                    <User size={16} /> Dashboard
+                                </a>
                                 <a href="/garage" className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-slate-200 hover:bg-slate-700/80 transition-colors">
                                     <Car size={16} /> My Garage
                                 </a>
@@ -222,8 +225,8 @@ const DashboardHeader = () => {
 function MyGarage() {
     const dispatch = useDispatch();
     const { items: vehicles, status } = useSelector((state) => state.vehicles);
-    const [ isAddModalOpen, setIsAddModalOpen ] = useState(false);
-    const [ vehicleData, setVehicleData ] = useState(null);
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [vehicleData, setVehicleData] = useState(null);
 
     useEffect(() => {
         if (status === 'idle') {

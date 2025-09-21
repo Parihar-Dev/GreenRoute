@@ -205,7 +205,7 @@ function Home() {
             </section>
 
             {/* Call to Action Section */}
-            <section className="py-20 px-6 bg-slate-900 fade-in" ref={ctaRef}>
+            <section id='cta' className="py-20 px-6 bg-slate-900 fade-in" ref={ctaRef}>
                 <div className="container mx-auto max-w-4xl">
                     <div className="bg-gradient-to-r from-slate-900/90 to-slate-800/90 rounded-3xl p-12 md:p-16 border border-slate-700 backdrop-blur-sm relative overflow-hidden">
                         <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-teal-500/5 rounded-3xl" aria-hidden="true"></div>
