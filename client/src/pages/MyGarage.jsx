@@ -33,7 +33,6 @@ const AddVehicleModal = ({ isOpen, onClose, onError, vehicle }) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
-    // Resets form data when modal opens for a new vehicle or when a vehicle is selected for edit
     useEffect(() => {
         if (vehicle) {
             setFormData(vehicle);

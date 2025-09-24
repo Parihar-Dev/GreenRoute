@@ -1,15 +1,12 @@
 import { useSelector } from "react-redux";
 import { Navigate, Outlet } from 'react-router-dom';
+import Loader from "./Loader";
 
 function ProtectedRoute () {
     const { token, status } = useSelector((state) => state.auth);
 
     if (status === 'loading') {
-        return (
-            <div className="flex justify-center items-center h-screen bg-black">
-                <p className="text-white">Loading...</p>
-            </div>
-        );
+        return <Loader />;
     }
 
     return token ? <Outlet /> : <Navigate to="/login" replace />;

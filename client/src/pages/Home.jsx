@@ -237,7 +237,7 @@ function Home() {
             {/* Footer */}
             <footer className="bg-slate-950 border-t border-slate-800 py-16 px-6">
                 <div className="container mx-auto max-w-6xl">
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mb-12">
                         <div className="md:col-span-1 flex flex-col space-y-10">
                             <Link to='/' aria-label="GreenRoute Home">
                                 <img src={Logo} alt='GreenRoute Logo' className='h-6' />
@@ -264,18 +264,9 @@ function Home() {
                         <div>
                             <h3 className="text-white font-semibold mb-6">Product</h3>
                             <ul className="space-y-4">
-                                <li><Link to="/features" className="text-slate-400 hover:text-emerald-400 transition-colors duration-200">Features</Link></li>
-                                <li><Link to="/pricing" className="text-slate-400 hover:text-emerald-400 transition-colors duration-200">Pricing</Link></li>
-                                <li><Link to="/api" className="text-slate-400 hover:text-emerald-400 transition-colors duration-200">API</Link></li>
-                            </ul>
-                        </div>
-
-                        <div>
-                            <h3 className="text-white font-semibold mb-6">Company</h3>
-                            <ul className="space-y-4">
-                                <li><Link to="/about" className="text-slate-400 hover:text-emerald-400 transition-colors duration-200">About Us</Link></li>
-                                <li><Link to="/careers" className="text-slate-400 hover:text-emerald-400 transition-colors duration-200">Careers</Link></li>
-                                <li><Link to="/blog" className="text-slate-400 hover:text-emerald-400 transition-colors duration-200">Blog</Link></li>
+                                <li><a href="#features" className="text-slate-400 hover:text-emerald-400 transition-colors duration-200">Features</a></li>
+                                <li><a href="#how-it-works" className="text-slate-400 hover:text-emerald-400 transition-colors duration-200">How It Works</a></li>
+                                <li><a href="#cta" className="text-slate-400 hover:text-emerald-400 transition-colors duration-200">CTA</a></li>
                             </ul>
                         </div>
 
