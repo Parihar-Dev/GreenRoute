@@ -1,11 +1,12 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
-import { loginUser, checkAuth } from '../../features/authSlice';
+import { loginUser } from '../../features/authSlice';
 
 function Login() {
     const dispatch = useDispatch();
+    const navigate = useNavigate();
     const { status:authStatus, error} = useSelector((state) => state.auth);
     const [ formData, setFormData ] = useState({
         email: '',
@@ -19,6 +20,7 @@ function Login() {
     const onSubmit = async(e) => {
         e.preventDefault();
         dispatch(loginUser({ email, password}));
+        navigate('/dashboard');
     };
 
     if (authStatus === 'loading') {

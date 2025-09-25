@@ -187,7 +187,7 @@ const DashboardHeader = () => {
     const onLogout = () => {
         dispatch(logout());
         setIsDropdownOpen(false);
-        navigate('/login');
+        navigate('/');
     }
 
     return (

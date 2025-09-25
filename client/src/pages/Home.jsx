@@ -223,6 +223,7 @@ function Home() {
                             <div className="flex justify-center">
                                 <button
                                     type="button"
+                                    onClick={() => window.location.href = user ? "/dashboard" : "/register"}
                                     className="flex justify-center items-center bg-emerald-600 hover:bg-emerald-700 text-white px-10 py-4 text-lg rounded-xl transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-emerald-500/25 group"
                                 >
                                     Start Free Trial
