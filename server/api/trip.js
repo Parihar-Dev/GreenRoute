@@ -44,7 +44,8 @@ exports.planTrip = asyncHandler(async (req, res) => {
             ],
             geometries: 'geojson',
             alternatives: false,
-            annotations: ['distance', 'duration']
+            annotations: ['distance', 'duration'],
+            overview: 'full'
         }).send();
     } catch (error) {
         console.error("Mapbox Directions API Error:", error.body || error.message);
@@ -63,7 +64,6 @@ exports.planTrip = asyncHandler(async (req, res) => {
     const duration_min = duration_s / 60;
     const decodedPolyline = route.geometry.coordinates.map(coord => [coord[1], coord[0]]);
 
-    // Elevation and weather (reuse your logic, or use defaults for alternatives)
     let elevation_gain_m = 200;
     try {
         const elevationRes = await axios.get(
@@ -83,7 +83,6 @@ exports.planTrip = asyncHandler(async (req, res) => {
         temperature_c = weatherRes.data.main.temp;
     } catch (error) {}
 
-    // ML prediction
     let mlRes;
     try {
         mlRes = await axios.post("http://localhost:8000/predict-energy", {
@@ -122,7 +121,6 @@ exports.planTrip = asyncHandler(async (req, res) => {
                 status: 'Available'
             }));
 
-            // Handle case where API returns no stations despite a need for them
             if (chargingStopsCount > 0 && chargingStations.length === 0) {
                 chargingStations = [{
                     name: "No charging stops found.",
@@ -135,7 +133,6 @@ exports.planTrip = asyncHandler(async (req, res) => {
             }
         } catch (error) {
             console.error("OpenChargeMap API Error:", error.response?.data || error.message);
-            // Instead of throwing an error, provide a user-friendly message
             chargingStations = [{
                 name: "Could not retrieve charging stations.",
                 distance: "Please check your OpenChargeMap API key or try again later.",

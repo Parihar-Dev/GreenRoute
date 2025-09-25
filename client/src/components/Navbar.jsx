@@ -44,7 +44,7 @@ function Navbar() {
         dispatch(logout());
         setIsDropdownOpen(false);
         closeMobileMenu();
-        navigate('/login');
+        navigate('/');
     };
 
     return (
